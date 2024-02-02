@@ -1,11 +1,12 @@
 #!/bin/bash
-#pp
+
 # Enable strict bash mode to stop the script if an uninitialized variable is used, if a command fails, or if a command with a pipe fails
 # Not working in some setups : https://github.com/tigerblue77/Dell_iDRAC_fan_controller/issues/48
 # set -euo pipefail
 
 # Define global functions
 # This function applies Dell's default dynamic fan control profile
+
 function apply_Dell_fan_control_profile () {
   # Use ipmitool to send the raw command to set fan control to Dell default
   ipmitool -I $IDRAC_LOGIN_STRING raw 0x30 0x30 0x01 0x01 > /dev/null
@@ -22,8 +23,13 @@ function apply_user_fan_control_profile () {
 
 function apply_line_interpolation_fan_control_profile () {
   ipmitool -I $IDRAC_LOGIN_STRING raw 0x30 0x30 0x01 0x00 > /dev/null
-  ipmitool -I $IDRAC_LOGIN_STRING raw 0x30 0x30 0x02 0xff $HEXADECIMAL_CURRENT_FAN_SPEED > /dev/null
-  CURRENT_FAN_CONTROL_PROFILE="Interpolated fan control profile ($CURRENT_FAN_SPEED%)"
+  ipmitool -I $IDRAC_LOGIN_STRING raw 0x30 0x30 0x02 0x00 $HEXADECIMAL_CURRENT_FAN_SPEED1 > /dev/null
+  ipmitool -I $IDRAC_LOGIN_STRING raw 0x30 0x30 0x02 0x01 $HEXADECIMAL_CURRENT_FAN_SPEED1 > /dev/null
+  ipmitool -I $IDRAC_LOGIN_STRING raw 0x30 0x30 0x02 0x02 $HEXADECIMAL_CURRENT_FAN_SPEED1 > /dev/null
+  ipmitool -I $IDRAC_LOGIN_STRING raw 0x30 0x30 0x02 0x03 $HEXADECIMAL_CURRENT_FAN_SPEED2 > /dev/null
+  ipmitool -I $IDRAC_LOGIN_STRING raw 0x30 0x30 0x02 0x04 $HEXADECIMAL_CURRENT_FAN_SPEED2 > /dev/null
+  ipmitool -I $IDRAC_LOGIN_STRING raw 0x30 0x30 0x02 0x05 $HEXADECIMAL_CURRENT_FAN_SPEED2 > /dev/null
+  CURRENT_FAN_CONTROL_PROFILE="Interpolated fan control profile ($CURRENT_FAN_SPEED1% $CURRENT_FAN_SPEED2%)"
 }
 
 # Retrieve temperature sensors data using ipmitool
@@ -105,7 +111,8 @@ trap 'gracefull_exit' SIGQUIT SIGKILL SIGTERM
 
 # Convert current fan value to hexadecimal
 function convert_current_fan_value_to_hexadecimal_format () {
-    HEXADECIMAL_CURRENT_FAN_SPEED=$(printf '0x%02x' $CURRENT_FAN_SPEED)
+    HEXADECIMAL_CURRENT_FAN_SPEED1=$(printf '0x%02x' $CURRENT_FAN_SPEED1)
+    HEXADECIMAL_CURRENT_FAN_SPEED2=$(printf '0x%02x' $CURRENT_FAN_SPEED2)
 }
 
 # Check if FAN_SPEED and HIGH_FAN_SPEED variable is in hexadecimal format. If not, convert it to hexadecimal
@@ -239,7 +246,8 @@ while true; do
   else
     if $ENABLE_LINE_INTERPOLATION
     then    
-      CURRENT_FAN_SPEED=$DECIMAL_FAN_SPEED
+      CURRENT_FAN_SPEED1=$DECIMAL_FAN_SPEED
+      CURRENT_FAN_SPEED2=$DECIMAL_FAN_SPEED
       
       CPU_HIGHER_TEMP=$CPU1_TEMPERATURE
       if $IS_CPU2_TEMPERATURE_SENSOR_PRESENT
@@ -249,8 +257,8 @@ while true; do
           CPU_HIGHER_TEMP=$CPU2_TEMPERATURE
         fi
       fi
-      
-      if [ $CPU_HIGHER_TEMP -gt $CPU_TEMPERATURE_FOR_START_LINE_INTERPOLATION ]; 
+      #cpu1
+      if [ $CPU1_TEMPERATURE -gt $CPU_TEMPERATURE_FOR_START_LINE_INTERPOLATION ]; 
       then
         #
         # F1 - lower fan speed
@@ -263,7 +271,32 @@ while true; do
         # Difference between higher and lower temperature
         TEMP_WINDOW="$((CPU_TEMPERATURE_THRESHOLD - CPU_TEMPERATURE_FOR_START_LINE_INTERPOLATION))"
         # Temperature above lower value
-        TEMPERATURE_ABOVE_LOWER_THRESHOLD="$((CPU_HIGHER_TEMP - CPU_TEMPERATURE_FOR_START_LINE_INTERPOLATION))"
+        TEMPERATURE_ABOVE_LOWER_THRESHOLD="$((CPU1_TEMPERATURE - CPU_TEMPERATURE_FOR_START_LINE_INTERPOLATION))"
+        # Difference between higher and lower fan speed
+        FAN_WINDOW="$((DECIMAL_HIGH_FAN_SPEED - DECIMAL_FAN_SPEED))"
+        FAN_VALUE_TO_ADD=0
+        # Check if TEMP_WINDOW is grater than 0
+        if [ $TEMP_WINDOW -gt $FAN_VALUE_TO_ADD ];
+        then
+          FAN_VALUE_TO_ADD="$((FAN_WINDOW * TEMPERATURE_ABOVE_LOWER_THRESHOLD / TEMP_WINDOW))"
+        fi
+        CURRENT_FAN_SPEED1="$((DECIMAL_FAN_SPEED + FAN_VALUE_TO_ADD))"
+      fi
+      #cpu2
+      if [ $CPU2_TEMPERATURE -gt $CPU_TEMPERATURE_FOR_START_LINE_INTERPOLATION ]; 
+      then
+        #
+        # F1 - lower fan speed
+        # F2 - higher fan speed
+        # T_CPU - higher temperature from both CPUs (if only one exist that will be CPU1 temp value)
+        # T1 - lower temperature threshold
+        # T2 - higher temperature threshold
+        # Fan speed = F1 + ( ( F2 - F1 ) * ( T_CPU - T1 ) / ( T2 - T1 ) )
+        #
+        # Difference between higher and lower temperature
+        TEMP_WINDOW="$((CPU_TEMPERATURE_THRESHOLD - CPU_TEMPERATURE_FOR_START_LINE_INTERPOLATION))"
+        # Temperature above lower value
+        TEMPERATURE_ABOVE_LOWER_THRESHOLD="$((CPU2_TEMPERATURE - CPU_TEMPERATURE_FOR_START_LINE_INTERPOLATION))"
         # Difference between higher and lower fan speed
         FAN_WINDOW="$((DECIMAL_HIGH_FAN_SPEED - DECIMAL_FAN_SPEED))"
         FAN_VALUE_TO_ADD=0
