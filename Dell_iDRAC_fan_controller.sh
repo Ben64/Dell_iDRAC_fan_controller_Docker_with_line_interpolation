@@ -32,6 +32,10 @@ function apply_line_interpolation_fan_control_profile () {
   CURRENT_FAN_CONTROL_PROFILE="Interpolated fan control profile ($CURRENT_FAN_SPEED1% $CURRENT_FAN_SPEED2%)"
 }
 
+function get_max_drive_temp () {
+  local HDDTEMP = $(telnet 127.0.0.1 7634 | grep -o [0-9][0-9]_C | grep -o ^[0-9][0-9] | sort | tail -n1)
+}
+
 # Retrieve temperature sensors data using ipmitool
 # Usage : retrieve_temperatures $IS_EXHAUST_TEMPERATURE_SENSOR_PRESENT $IS_CPU2_TEMPERATURE_SENSOR_PRESENT
 function retrieve_temperatures () {
@@ -205,6 +209,14 @@ while true; do
   SLEEP_PROCESS_PID=$!
 
   retrieve_temperatures $IS_EXHAUST_TEMPERATURE_SENSOR_PRESENT $IS_CPU2_TEMPERATURE_SENSOR_PRESENT
+  if $HDDTEMP_ENABLED
+  then
+      get_max_drive_temp
+      if HDDTEMP -gt $HDDTEMP_THRESHOLD
+      CPU1_TEMPERATURE = $HDDTEMP
+      CPU2_TEMPERATURE = $HDDTEMP
+      fi
+  fi
 
   # Define functions to check if CPU 1 and CPU 2 temperatures are above the threshold
   function CPU1_OVERHEAT () { [ $CPU1_TEMPERATURE -gt $CPU_TEMPERATURE_THRESHOLD ]; }
