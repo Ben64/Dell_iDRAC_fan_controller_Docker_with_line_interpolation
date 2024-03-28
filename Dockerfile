@@ -1,10 +1,12 @@
 FROM ubuntu:latest
 
-LABEL org.opencontainers.image.authors="tigerblue77"
+LABEL org.opencontainers.image.authors="Ben64"
 
 RUN apt-get update
 
 RUN apt-get install ipmitool -y
+
+RUN apt-get install telnet -y
 
 ADD Dell_iDRAC_fan_controller.sh /Dell_iDRAC_fan_controller.sh
 
@@ -23,5 +25,7 @@ ENV DISABLE_THIRD_PARTY_PCIE_CARD_DELL_DEFAULT_COOLING_RESPONSE false
 ENV CPU_TEMPERATURE_FOR_START_LINE_INTERPOLATION 40
 ENV ENABLE_LINE_INTERPOLATION false
 ENV HIGH_FAN_SPEED 45
+
+ENV CHECK_HDDTEMP 0
 
 CMD ["/Dell_iDRAC_fan_controller.sh"]
