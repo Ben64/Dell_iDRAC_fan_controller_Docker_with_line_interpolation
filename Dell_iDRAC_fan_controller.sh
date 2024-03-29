@@ -34,7 +34,7 @@ function apply_line_interpolation_fan_control_profile () {
 
 #need to run hddtemp with _ as seperator, this isn't going to work for everyone
 function get_max_drive_temp () {
-  HDDTEMP=$(telnet 127.0.0.1 7634 | grep -o [0-9][0-9]_C | grep -o ^[0-9][0-9] | sort | tail -n1)
+  HDDTEMP=$(telnet $HDDTEMP_HOST 7634 | grep -o [0-9][0-9]_C | grep -o ^[0-9][0-9] | sort | tail -n1)
 }
 
 # Retrieve temperature sensors data using ipmitool
