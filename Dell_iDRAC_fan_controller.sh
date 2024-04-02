@@ -305,7 +305,7 @@ while true; do
         then
           FAN_VALUE_TO_ADD="$((FAN_WINDOW * TEMPERATURE_ABOVE_LOWER_THRESHOLD / TEMP_WINDOW))"
         fi
-        CURRENT_FAN_SPEED="$((DECIMAL_FAN_SPEED + FAN_VALUE_TO_ADD))"
+        CURRENT_FAN_SPEED2="$((DECIMAL_FAN_SPEED + FAN_VALUE_TO_ADD))"
       fi
       # Convert decimal to hexadecimal value of fan speed
       convert_current_fan_value_to_hexadecimal_format
